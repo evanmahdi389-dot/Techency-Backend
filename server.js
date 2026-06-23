@@ -19,7 +19,10 @@ const app = express();
 connectDB();
 
 app.use(cors({
-  origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  origin: [
+    process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+    'https://techency.up.railway.app'
+  ],
   credentials: true
 }));
 app.use(helmet());
