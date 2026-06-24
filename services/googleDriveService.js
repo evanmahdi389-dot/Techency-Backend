@@ -1,5 +1,6 @@
 const { getDriveClient, FOLDER_ID } = require('../config/googleDrive');
 const { Readable } = require('stream');
+const fs = require('fs');
 
 class GoogleDriveService {
   /**
@@ -47,6 +48,59 @@ class GoogleDriveService {
     });
 
     // Get updated file with sharing info
+    const fileDetails = await drive.files.get({
+      fileId,
+      fields: 'id, name, webViewLink, webContentLink, thumbnailLink',
+      supportsAllDrives: true,
+    });
+
+    return {
+      fileId,
+      webViewLink: fileDetails.data.webViewLink,
+      webContentLink: fileDetails.data.webContentLink,
+      thumbnailLink: fileDetails.data.thumbnailLink || '',
+    };
+  }
+
+  /**
+   * Upload a file from disk to Google Drive using resumable upload
+   * @param {string} filePath - Path to the local file
+   * @param {string} fileName - Original file name
+   * @param {string} mimeType - File MIME type
+   * @returns {Object} { fileId, webViewLink, thumbnailLink }
+   */
+  async uploadFileResumable(filePath, fileName, mimeType) {
+    const drive = getDriveClient();
+
+    const fileMetadata = {
+      name: fileName,
+      parents: [FOLDER_ID],
+    };
+
+    const media = {
+      mimeType,
+      body: fs.createReadStream(filePath),
+    };
+
+    const response = await drive.files.create({
+      requestBody: fileMetadata,
+      media,
+      fields: 'id, name, webViewLink, thumbnailLink, mimeType',
+      supportsAllDrives: true,
+    });
+
+    const fileId = response.data.id;
+
+    // Make file publicly readable
+    await drive.permissions.create({
+      fileId,
+      requestBody: {
+        role: 'reader',
+        type: 'anyone',
+      },
+      supportsAllDrives: true,
+    });
+
     const fileDetails = await drive.files.get({
       fileId,
       fields: 'id, name, webViewLink, webContentLink, thumbnailLink',

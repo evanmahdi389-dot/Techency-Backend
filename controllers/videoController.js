@@ -126,22 +126,124 @@
 
 const videoService = require('../services/videoService');
 const responseHandler = require('../utils/responseHandler');
+const cloudinary = require('../config/cloudinary');
+const googleDriveService = require('../services/googleDriveService');
+const fs = require('fs');
+const path = require('path');
 
 class VideoController {
-  async upload(req, res, next) {
+  // -------------------------------------------------------------------
+  // POST /api/videos/upload-thumbnail
+  // Accepts an image file (in-memory), uploads to Cloudinary, returns URL
+  // -------------------------------------------------------------------
+  async uploadThumbnail(req, res, next) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No thumbnail file provided' });
+      }
+
+      // Upload from memory buffer to Cloudinary as a stream
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: 'techency/thumbnails',
+            resource_type: 'image',
+            format: 'webp',         // auto-convert to WebP
+            quality: 'auto:good',   // auto-optimize quality
+            transformation: [{ width: 800, height: 450, crop: 'fill', gravity: 'center' }],
+          },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: 'Thumbnail uploaded to Cloudinary',
+        data: { thumbnail_url: result.secure_url },
+      });
+    } catch (error) {
+      console.error('Cloudinary upload error:', error.message);
+      next(error);
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // POST /api/videos/upload-video
+  // Accepts a video file (saved to disk), streams it to Google Drive,
+  // deletes the temp file, and returns the drive_file_id.
+  // -------------------------------------------------------------------
+  async uploadVideo(req, res, next) {
+    const tempPath = req.file ? req.file.path : null;
     try {
       if (!req.file) {
         return res.status(400).json({ success: false, message: 'No video file provided' });
       }
-      const video = await videoService.uploadVideo(
-        { ...req.body, uploadedBy: req.user._id, userRole: req.user.role },
-        req.file
+
+      const driveResult = await googleDriveService.uploadFileResumable(
+        req.file.path,
+        req.file.originalname,
+        req.file.mimetype
       );
+
+      return res.status(200).json({
+        success: true,
+        message: 'Video uploaded to Google Drive',
+        data: { drive_file_id: driveResult.fileId },
+      });
+    } catch (error) {
+      console.error('Drive upload error:', error.message);
+      next(error);
+    } finally {
+      // Always clean up the temp file from disk
+      if (tempPath && fs.existsSync(tempPath)) {
+        fs.unlink(tempPath, (err) => {
+          if (err) console.error('Failed to delete temp file:', err.message);
+        });
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // POST /api/videos/save
+  // Accepts JSON body with all metadata + drive_file_id + thumbnail_url
+  // Saves the final video document to MongoDB.
+  // -------------------------------------------------------------------
+  async saveVideo(req, res, next) {
+    try {
+      const { title, description, category, subcategory, tags, drive_file_id, thumbnail_url } = req.body;
+
+      if (!title || !category || !subcategory || !drive_file_id) {
+        return res.status(400).json({ success: false, message: 'Missing required fields: title, category, subcategory, drive_file_id' });
+      }
+
+      const parsedTags = typeof tags === 'string'
+        ? tags.split(',').map(t => t.trim()).filter(Boolean)
+        : (Array.isArray(tags) ? tags : []);
+
+      const Video = require('../models/Video');
+      const video = await Video.create({
+        title,
+        description: description || '',
+        category,
+        subcategory,
+        tags: parsedTags,
+        drive_file_id,
+        thumbnail_url: thumbnail_url || '',
+        status: req.user.role === 'admin' ? 'approved' : 'pending',
+        uploadedBy: req.user._id,
+      });
+
       const message = req.user.role === 'admin'
-        ? 'Video uploaded and approved successfully.'
-        : 'Video uploaded successfully. Pending admin approval.';
+        ? 'Video saved and approved successfully.'
+        : 'Video saved and pending admin approval.';
+
       responseHandler(res, 201, message, video);
     } catch (error) {
+      console.error('Save video error:', error.message);
       next(error);
     }
   }
