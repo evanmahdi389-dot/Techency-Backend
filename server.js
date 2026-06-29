@@ -13,6 +13,8 @@ const videoRoutes = require('./routes/videoRoutes');
 const demoRoutes = require('./routes/demoRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const userRoutes = require('./routes/userRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const settingsRoutes = require('./routes/settingsRoutes');
 
 const app = express();
 
@@ -34,7 +36,7 @@ app.get('/', (req, res) => {
   responseHandler(res, 200, 'Video Agency Management API is running', {
     service: 'Techency Video Agency API',
     version: '1.0.0',
-    endpoints: ['/api/auth', '/api/videos', '/api/demo', '/api/category', '/api/users']
+    endpoints: ['/api/auth', '/api/videos', '/api/demo', '/api/category', '/api/users', '/api/orders', '/api/settings']
   });
 });
 
@@ -43,6 +45,8 @@ app.use('/api/videos', videoRoutes);
 app.use('/api/demo', demoRoutes);
 app.use('/api/category', categoryRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/settings', settingsRoutes);
 
 app.use(errorHandler);
 

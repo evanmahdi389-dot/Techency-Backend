@@ -43,35 +43,35 @@ const imageUpload = multer({
 // GET /api/videos/stats (admin only)
 router.get('/stats', authMiddleware, roleMiddleware(['admin']), videoController.getStats);
 
-// GET /api/videos/my-uploads (editor)
-router.get('/my-uploads', authMiddleware, roleMiddleware(['editor', 'admin']), videoController.myUploads);
+// GET /api/videos/my-uploads
+router.get('/my-uploads', authMiddleware, roleMiddleware(['editor', 'admin', 'project manager']), videoController.myUploads);
 
 // GET /api/videos/stream/:driveFileId (public - no auth needed, for client demo page)
 router.get('/stream/:driveFileId', videoController.streamVideo);
 
-// POST /api/videos/upload-thumbnail (editor + admin)
+// POST /api/videos/upload-thumbnail
 router.post(
   '/upload-thumbnail',
   authMiddleware,
-  roleMiddleware(['admin', 'editor']),
+  roleMiddleware(['admin', 'editor', 'project manager']),
   imageUpload.single('thumbnail'),
   videoController.uploadThumbnail
 );
 
-// POST /api/videos/upload-video (editor + admin)
+// POST /api/videos/upload-video
 router.post(
   '/upload-video',
   authMiddleware,
-  roleMiddleware(['admin', 'editor']),
+  roleMiddleware(['admin', 'editor', 'project manager']),
   videoUpload.single('video'),
   videoController.uploadVideo
 );
 
-// POST /api/videos/save (editor + admin)
+// POST /api/videos/save
 router.post(
   '/save',
   authMiddleware,
-  roleMiddleware(['admin', 'editor']),
+  roleMiddleware(['admin', 'editor', 'project manager']),
   videoController.saveVideo
 );
 
@@ -81,10 +81,13 @@ router.get('/', authMiddleware, videoController.getAll);
 // GET /api/videos/:id
 router.get('/:id', authMiddleware, videoController.getById);
 
+// PUT /api/videos/:id
+router.put('/:id', authMiddleware, roleMiddleware(['admin', 'project manager']), videoController.update);
+
 // PUT /api/videos/:id/approve (admin only)
 router.put('/:id/approve', authMiddleware, roleMiddleware(['admin']), videoController.approve);
 
-// DELETE /api/videos/:id (admin only)
-router.delete('/:id', authMiddleware, roleMiddleware(['admin']), videoController.delete);
+// DELETE /api/videos/:id
+router.delete('/:id', authMiddleware, roleMiddleware(['admin', 'project manager']), videoController.delete);
 
 module.exports = router;

@@ -65,6 +65,24 @@ class VideoService {
     return video;
   }
 
+  async updateVideo(videoId, updateData) {
+    const video = await videoRepository.findById(videoId);
+    if (!video) {
+      const error = new Error('Video not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Process tags if they are updated
+    if (updateData.tags !== undefined) {
+      updateData.tags = typeof updateData.tags === 'string'
+        ? updateData.tags.split(',').map(t => t.trim()).filter(Boolean)
+        : (Array.isArray(updateData.tags) ? updateData.tags : []);
+    }
+
+    return await videoRepository.updateById(videoId, updateData);
+  }
+
   async approveVideo(videoId, status, rejectionReason = '') {
     const video = await videoRepository.findById(videoId);
     if (!video) {

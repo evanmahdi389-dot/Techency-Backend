@@ -9,8 +9,12 @@ class UserManagementService {
   async createUser(data) {
     const { name, email, password, role } = data;
 
-    if (!['admin', 'editor', 'sales'].includes(role)) {
-      const error = new Error('Invalid role. Must be admin, editor, or sales');
+    const DynamicSetting = require('../models/DynamicSetting');
+    let settings = await DynamicSetting.findOne();
+    const validRoles = settings ? settings.roles : ['admin', 'editor', 'sales', 'pm', 'writer'];
+
+    if (!validRoles.includes(role)) {
+      const error = new Error(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
       error.statusCode = 400;
       throw error;
     }

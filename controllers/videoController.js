@@ -233,17 +233,35 @@ class VideoController {
         tags: parsedTags,
         drive_file_id,
         thumbnail_url: thumbnail_url || '',
-        status: req.user.role === 'admin' ? 'approved' : 'pending',
+        status: ['admin', 'project manager'].includes(req.user.role) ? 'approved' : 'pending',
         uploadedBy: req.user._id,
       });
 
-      const message = req.user.role === 'admin'
+      const message = ['admin', 'project manager'].includes(req.user.role)
         ? 'Video saved and approved successfully.'
         : 'Video saved and pending admin approval.';
 
       responseHandler(res, 201, message, video);
     } catch (error) {
       console.error('Save video error:', error.message);
+      next(error);
+    }
+  }
+
+  async update(req, res, next) {
+    try {
+      const { title, description, category, subcategory, tags } = req.body;
+      
+      const updateData = {};
+      if (title) updateData.title = title;
+      if (description !== undefined) updateData.description = description;
+      if (category) updateData.category = category;
+      if (subcategory) updateData.subcategory = subcategory;
+      if (tags !== undefined) updateData.tags = tags;
+
+      const video = await videoService.updateVideo(req.params.id, updateData);
+      responseHandler(res, 200, 'Video updated successfully', video);
+    } catch (error) {
       next(error);
     }
   }

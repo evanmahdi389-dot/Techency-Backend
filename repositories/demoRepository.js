@@ -24,6 +24,7 @@ class DemoRepository {
   async findByUser(userId) {
     return await DemoLink.find({ createdBy: userId })
       .populate('videoIds', 'title category thumbnail_url')
+      .populate('createdBy', 'name email role')
       .sort({ createdAt: -1 });
   }
 
