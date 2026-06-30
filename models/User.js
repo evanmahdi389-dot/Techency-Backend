@@ -9,6 +9,10 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       default: 'sales'
+    },
+    profileImage: {
+      type: String,
+      default: null
     }
   },
   { timestamps: true }

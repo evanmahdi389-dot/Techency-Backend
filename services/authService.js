@@ -34,6 +34,41 @@ class AuthService {
       }
     };
   }
+
+  async updateProfile(userId, updateData) {
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      const error = new Error('User not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (updateData.name) user.name = updateData.name;
+    if (updateData.email) {
+      // Check if email is being changed and is already taken
+      if (updateData.email !== user.email) {
+        const existingUser = await userRepository.findByEmail(updateData.email);
+        if (existingUser) {
+          const error = new Error('Email already in use');
+          error.statusCode = 400;
+          throw error;
+        }
+        user.email = updateData.email;
+      }
+    }
+    if (updateData.password) user.password = updateData.password;
+    if (updateData.profileImage) user.profileImage = updateData.profileImage;
+
+    await user.save();
+
+    return {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      profileImage: user.profileImage
+    };
+  }
 }
 
 module.exports = new AuthService();

@@ -34,4 +34,8 @@ router.get('/me', authMiddleware, (req, res) => {
   responseHandler(res, 200, 'User profile', req.user);
 });
 
+// PUT /api/auth/profile
+const { upload } = require('../middleware/uploadMiddleware');
+router.put('/profile', authMiddleware, upload.single('profileImage'), authController.updateProfile);
+
 module.exports = router;
