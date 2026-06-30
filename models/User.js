@@ -10,6 +10,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: 'sales'
     },
+    gender: {
+      type: String,
+      enum: ['Male', 'Female']
+    },
     profileImage: {
       type: String,
       default: null

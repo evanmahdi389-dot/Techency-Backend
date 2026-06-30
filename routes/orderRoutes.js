@@ -8,6 +8,10 @@ router.get('/', orderController.getOrders);
 router.get('/metrics', orderController.getMetrics);
 
 // State Transition Routes
+router.put('/:id/approve-without-payment', orderController.approveOrderWithoutPayment);
+router.put('/:id/update-payment', orderController.updatePayment);
+router.put('/:id/update-courier', orderController.updateCourierInfo);
+
 router.put('/:id/approve-order', orderController.approveOrder);
 router.put('/:id/submit-script', orderController.submitScript);
 router.put('/:id/approve-script', orderController.approveScript);

@@ -28,18 +28,28 @@ const orderSchema = new mongoose.Schema({
     }
   },
   modelCasting: {
+    totalContent: { type: Number, default: 0 },
+    numberOfProductImages: { type: Number, default: 0 },
+    numberOfContent: { type: Number, default: 0 }, // For video editing
+    clientVideoLink: { type: String }, // For video editing
     numberOfModels: { type: Number, default: 0 },
     modelTypes: [{ type: String }], // e.g., ['Male', 'Female']
     modelIds: [{
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'ModelDirectory'
-    }]
+      ref: 'User'
+    }],
+    modelContents: {
+      type: Map,
+      of: Number // modelId -> number of content
+    }
   },
   billing: {
     total: { type: Number, required: true },
     paid: { type: Number, default: 0 },
     due: { type: Number, required: true },
     method: { type: String },
+    bankName: { type: String },
+    transactionId: { type: String },
     notes: { type: String }
   },
   productionStates: {
@@ -66,6 +76,10 @@ const orderSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: [
+      'Pay Now',
+      'Pending',
+      'Admin Order Approved',
+      'PM Order Approved',
       'Pending PM Review',
       'In Scripting',
       'Script Submitted',
@@ -76,7 +90,7 @@ const orderSchema = new mongoose.Schema({
       'Awaiting Final Payment',
       'Completed'
     ],
-    default: 'Pending PM Review'
+    default: 'Pending'
   }
 }, { timestamps: true });
 

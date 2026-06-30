@@ -5,15 +5,34 @@ exports.createOrder = async (req, res) => {
   try {
     const orderData = req.body;
 
-    // Set courier status based on order source
-    if (orderData.clientInfo && orderData.clientInfo.orderSource === 'In Office') {
-      if (!orderData.productCourierTracking) orderData.productCourierTracking = {};
-      orderData.productCourierTracking.status = 'Received';
-    } else {
-      if (!orderData.productCourierTracking) orderData.productCourierTracking = {};
-      if (!orderData.productCourierTracking.status) {
-        orderData.productCourierTracking.status = 'Not Sent Yet';
+    // Clean up empty string numbers
+    if (orderData.modelCasting) {
+      if (orderData.modelCasting.numberOfModels === '') delete orderData.modelCasting.numberOfModels;
+      if (orderData.modelCasting.totalContent === '') delete orderData.modelCasting.totalContent;
+      if (orderData.modelCasting.numberOfProductImages === '') delete orderData.modelCasting.numberOfProductImages;
+    }
+    if (orderData.billing) {
+      orderData.billing.total = Number(orderData.billing.total) || 0;
+      orderData.billing.paid = Number(orderData.billing.paid) || 0;
+      orderData.billing.due = Number(orderData.billing.due) || 0;
+    }
+
+    // Default Courier Status
+    if (!orderData.productCourierTracking) orderData.productCourierTracking = {};
+    if (!orderData.productCourierTracking.status) {
+      orderData.productCourierTracking.status = 'Not Sent Yet';
+    }
+
+    // Determine initial status based on payment (50% rule)
+    if (orderData.billing && orderData.billing.total > 0) {
+      const halfTotal = orderData.billing.total / 2;
+      if (orderData.billing.paid >= halfTotal) {
+        orderData.status = 'Pending';
+      } else {
+        orderData.status = 'Pay Now';
       }
+    } else {
+       orderData.status = 'Pending'; // fallback if no billing
     }
 
     const newOrder = new Order(orderData);
@@ -21,6 +40,78 @@ exports.createOrder = async (req, res) => {
     res.status(201).json({ message: 'Order created successfully', order: newOrder });
   } catch (error) {
     res.status(500).json({ message: 'Error creating order', error: error.message });
+  }
+};
+
+// 1.1 Approve Order (Admin/PM)
+exports.approveOrderWithoutPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body; // e.g., 'Admin' or 'Project Manager'
+    
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    if (role === 'Admin') {
+      order.status = 'Admin Order Approved';
+    } else if (role === 'Project Manager') {
+      order.status = 'PM Order Approved';
+    } else {
+      return res.status(403).json({ message: 'Unauthorized role for this action' });
+    }
+
+    await order.save();
+    res.status(200).json({ message: 'Order approved successfully', order });
+  } catch (error) {
+    res.status(500).json({ message: 'Error approving order', error: error.message });
+  }
+};
+
+// 1.2 Update Payment
+exports.updatePayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    order.billing.paid += Number(amount);
+    order.billing.due = Math.max(0, order.billing.total - order.billing.paid);
+
+    // If status is Pay Now and they reached 50%
+    if (order.status === 'Pay Now' && order.billing.paid >= (order.billing.total / 2)) {
+      order.status = 'Pending';
+    }
+
+    await order.save();
+    res.status(200).json({ message: 'Payment updated successfully', order });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating payment', error: error.message });
+  }
+};
+
+// 1.3 Update Courier
+exports.updateCourierInfo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { deliveryMode, courierName, trackingId } = req.body;
+
+    const order = await Order.findById(id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+
+    order.productCourierTracking = {
+      ...order.productCourierTracking,
+      deliveryMode: deliveryMode || order.productCourierTracking.deliveryMode,
+      courierName: courierName || order.productCourierTracking.courierName,
+      trackingId: trackingId || order.productCourierTracking.trackingId,
+      status: 'On the Way' // Or received based on logic, assuming sent
+    };
+
+    await order.save();
+    res.status(200).json({ message: 'Courier info updated successfully', order });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating courier info', error: error.message });
   }
 };
 
